@@ -25,6 +25,7 @@
     let lastNote = null;
     let lastTime = 0;
     let history = [];
+    let freqBuffer = [];
     let stopTimeout;
 
     const startBtn = document.getElementById('start');
@@ -45,6 +46,7 @@
         lastNote = null;
         lastTime = 0;
         history = [];
+        freqBuffer = [];
         stopBtn.disabled = false;
         startBtn.disabled = true;
         stopTimeout = setTimeout(stopRecording, 60000);
@@ -69,9 +71,16 @@
     function update() {
         analyser.getFloatTimeDomainData(dataArray);
         const freq = autoCorrelate(dataArray, audioCtx.sampleRate);
-        let note = null;
+        const now = audioCtx.currentTime;
         if (freq !== -1) {
-            note = freqToNote(freq);
+            freqBuffer.push({ freq, time: now });
+        }
+        freqBuffer = freqBuffer.filter(p => now - p.time <= 0.5);
+        let note = null;
+        let avg = null;
+        if (freqBuffer.length) {
+            avg = freqBuffer.reduce((s, p) => s + p.freq, 0) / freqBuffer.length;
+            note = freqToNote(avg);
         }
         const t = audioCtx.currentTime - startTime;
         if (lastNote === null) {
@@ -84,7 +93,8 @@
             displayHistory();
         }
         if (note) {
-            currentDisplay.textContent = `${note} (${freq.toFixed(2)} Hz)`;
+            const displayFreq = avg !== null ? avg : freq;
+            currentDisplay.textContent = `${note} (${displayFreq.toFixed(2)} Hz)`;
         } else {
             currentDisplay.textContent = 'No pitch detected';
         }
