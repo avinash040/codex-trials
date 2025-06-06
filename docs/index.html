@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pitch Detector</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #current { font-size: 1.2em; margin-top: 10px; }
+        pre { background: #f0f0f0; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Pitch Detector</h1>
+    <button id="start">Start</button>
+    <button id="stop" disabled>Stop</button>
+    <div id="current">Not started</div>
+    <h2>History</h2>
+    <pre id="history"></pre>
+    <script>
+    let audioCtx;
+    let analyser;
+    let dataArray;
+    let running = false;
+    let startTime;
+    let lastNote = null;
+    let lastTime = 0;
+    let history = [];
+    let stopTimeout;
+
+    const startBtn = document.getElementById('start');
+    const stopBtn = document.getElementById('stop');
+    const currentDisplay = document.getElementById('current');
+    const historyEl = document.getElementById('history');
+
+    startBtn.onclick = async () => {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = audioCtx.createMediaStreamSource(stream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        dataArray = new Float32Array(analyser.fftSize);
+        source.connect(analyser);
+        running = true;
+        startTime = audioCtx.currentTime;
+        lastNote = null;
+        lastTime = 0;
+        history = [];
+        stopBtn.disabled = false;
+        startBtn.disabled = true;
+        stopTimeout = setTimeout(stopRecording, 60000);
+        update();
+    };
+
+    stopBtn.onclick = stopRecording;
+
+    function stopRecording() {
+        if (!running) return;
+        running = false;
+        clearTimeout(stopTimeout);
+        const t = audioCtx.currentTime - startTime;
+        if (lastNote !== null) {
+            history.push({ note: lastNote, start: lastTime, end: t });
+        }
+        displayHistory();
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    }
+
+    function update() {
+        analyser.getFloatTimeDomainData(dataArray);
+        const freq = autoCorrelate(dataArray, audioCtx.sampleRate);
+        let note = null;
+        if (freq !== -1) {
+            note = freqToNote(freq);
+        }
+        const t = audioCtx.currentTime - startTime;
+        if (lastNote === null) {
+            lastNote = note;
+            lastTime = t;
+        } else if (note !== lastNote) {
+            history.push({ note: lastNote, start: lastTime, end: t });
+            lastNote = note;
+            lastTime = t;
+            displayHistory();
+        }
+        if (note) {
+            currentDisplay.textContent = `${note} (${freq.toFixed(2)} Hz)`;
+        } else {
+            currentDisplay.textContent = 'No pitch detected';
+        }
+        if (running) requestAnimationFrame(update);
+    }
+
+    function displayHistory() {
+        historyEl.textContent = history.map(e => {
+            const hold = (e.end - e.start).toFixed(2);
+            return `${e.note || 'None'} held for ${hold}s (from ${e.start.toFixed(2)} to ${e.end.toFixed(2)})`;
+        }).join('\n');
+    }
+
+    function freqToNote(freq) {
+        const A4 = 440;
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const noteNum = Math.round(12 * Math.log2(freq / A4) + 69);
+        const octave = Math.floor(noteNum / 12) - 1;
+        return noteNames[noteNum % 12] + octave;
+    }
+
+    function autoCorrelate(buf, sampleRate) {
+        let SIZE = buf.length;
+        let rms = 0;
+        for (let i = 0; i < SIZE; i++) {
+            const val = buf[i];
+            rms += val * val;
+        }
+        rms = Math.sqrt(rms / SIZE);
+        if (rms < 0.01) return -1;
+
+        let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+        for (let i = 0; i < SIZE / 2; i++) if (Math.abs(buf[i]) < thres) { r1 = i; break; }
+        for (let i = 1; i < SIZE / 2; i++) if (Math.abs(buf[SIZE - i]) < thres) { r2 = SIZE - i; break; }
+        buf = buf.slice(r1, r2);
+        SIZE = buf.length;
+
+        const c = new Array(SIZE).fill(0);
+        for (let i = 0; i < SIZE; i++) {
+            for (let j = 0; j < SIZE - i; j++) {
+                c[i] = c[i] + buf[j] * buf[j + i];
+            }
+        }
+        let d = 0; while (c[d] > c[d + 1]) d++;
+        let maxval = -1, maxpos = -1;
+        for (let i = d; i < SIZE; i++) {
+            if (c[i] > maxval) {
+                maxval = c[i];
+                maxpos = i;
+            }
+        }
+        let T0 = maxpos;
+        if (T0 > 0 && T0 < c.length - 1) {
+            const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+            const a = (x1 + x3 - 2 * x2) / 2;
+            const b = (x3 - x1) / 2;
+            if (a) T0 = T0 - b / (2 * a);
+        }
+        return sampleRate / T0;
+    }
+    </script>
+</body>
+</html>
