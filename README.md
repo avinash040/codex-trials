@@ -7,6 +7,8 @@ This repository contains a simple in-browser pitch detector. The `docs` folder h
 1. Open your repository settings on GitHub.
 2. In the **Pages** section, choose the `docs/` folder as the source and save.
 3. Visit the provided URL to use the app.
+4. The `docs/_config.yml` file sets a Jekyll theme so the page looks good.
+
 
 ## Local Python Tools
 
@@ -20,3 +22,4 @@ Compile them to verify dependencies:
 ```bash
 python3 -m py_compile pitch_detector.py webapp.py
 ```
+

@@ -17,7 +17,14 @@ def freq_to_note(freq):
     return f"{note_names[note_num % 12]}{octave}"
 
 
-def detect_pitches(samples, samplerate, hop_size=512):
+def detect_pitches(samples, samplerate, hop_size=512, amp_threshold=0.02):
+    """Return pitch events from an audio array.
+
+    amp_threshold is the minimum RMS amplitude required for a pitch to be
+    considered valid. Quieter segments are treated as silence so unintentional
+    sounds do not appear in the output.
+    """
+
     tolerance = 0.8
     win_s = 1024
     pitch_o = aubio.pitch('default', win_s, hop_size, samplerate)
@@ -31,7 +38,8 @@ def detect_pitches(samples, samplerate, hop_size=512):
         block = samples[i:i + hop_size]
         if len(block) < hop_size:
             block = np.pad(block, (0, hop_size - len(block)))
-        pitch = float(pitch_o(block)[0])
+        amp = np.sqrt(np.mean(block ** 2))
+        pitch = float(pitch_o(block)[0]) if amp >= amp_threshold else 0.0
         pitches.append(pitch)
         timestamps.append(i / float(samplerate))
 

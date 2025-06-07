@@ -17,7 +17,14 @@ def freq_to_note(freq):
     return f"{note}{octave}"
 
 
-def detect_pitches(duration=60, samplerate=44100, hop_size=512):
+def detect_pitches(duration=60, samplerate=44100, hop_size=512, amp_threshold=0.02):
+    """Record audio and return pitch events.
+
+    amp_threshold sets the minimum RMS amplitude needed to consider a pitch
+    reading valid. Lower-level sounds are ignored so quiet background noise
+    doesn't create spurious notes.
+    """
+
     print(f"Recording for {duration} seconds...")
     audio = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype='float32')
     sd.wait()
@@ -36,7 +43,8 @@ def detect_pitches(duration=60, samplerate=44100, hop_size=512):
         samples = audio[i:i + hop_size]
         if len(samples) < hop_size:
             samples = np.pad(samples, (0, hop_size - len(samples)))
-        pitch = pitch_o(samples)[0]
+        amp = np.sqrt(np.mean(samples ** 2))
+        pitch = pitch_o(samples)[0] if amp >= amp_threshold else 0.0
         time_stamp = i / float(samplerate)
         pitches.append(pitch)
         timestamps.append(time_stamp)
