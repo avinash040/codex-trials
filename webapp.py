@@ -17,7 +17,7 @@ def freq_to_note(freq):
     return f"{note_names[note_num % 12]}{octave}"
 
 
-def detect_pitches(samples, samplerate, hop_size=512):
+def detect_pitches(samples, samplerate, hop_size=512, noise_floor=0.02):
     tolerance = 0.8
     win_s = 1024
     pitch_o = aubio.pitch('default', win_s, hop_size, samplerate)
@@ -31,7 +31,10 @@ def detect_pitches(samples, samplerate, hop_size=512):
         block = samples[i:i + hop_size]
         if len(block) < hop_size:
             block = np.pad(block, (0, hop_size - len(block)))
+        rms = np.sqrt(np.mean(block ** 2))
         pitch = float(pitch_o(block)[0])
+        if rms < noise_floor:
+            pitch = 0.0
         pitches.append(pitch)
         timestamps.append(i / float(samplerate))
 
