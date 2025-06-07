@@ -1,6 +1,6 @@
 # Pitch Detection Webapp
 
-This repository contains a simple in-browser pitch detector. The `docs` folder hosts a standalone web app that records from your microphone, detects pitch and musical note, and keeps a history of notes for up to one minute.  Quiet sounds below a small amplitude threshold are ignored so background noise doesn't affect the pitch log.
+This repository contains a simple in-browser pitch detector. The `docs` folder hosts a standalone web app that records from your microphone, detects pitch and musical note, and keeps a history of notes for up to one minute.
 
 ## Hosting with GitHub Pages
 
@@ -8,6 +8,7 @@ This repository contains a simple in-browser pitch detector. The `docs` folder h
 2. In the **Pages** section, choose the `docs/` folder as the source and save.
 3. Visit the provided URL to use the app.
 4. The `docs/_config.yml` file sets a Jekyll theme so the page looks good.
+
 
 ## Local Python Tools
 
